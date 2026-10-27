@@ -1,0 +1,28 @@
+{
+  "name": "btvn-bao-mat",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "BTVN thiết kế cho bảo mật: API Gateway và MinIO Valet Key",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "node scripts/dev.mjs",
+    "start:gateway": "node --env-file=.env src/gateway/main.mjs",
+    "start:user": "node --env-file=.env src/user/main.mjs",
+    "start:order": "node --env-file=.env src/order/main.mjs",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
+    "test:e2e": "node --env-file=.env scripts/e2e.mjs",
+    "benchmark": "node --env-file=.env scripts/benchmark.mjs",
+    "benchmark:local": "node --env-file=.env scripts/benchmark-local.mjs",
+    "check": "node scripts/check.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1156.0",
+    "@aws-sdk/s3-request-presigner": "3.1156.0",
+    "express": "5.3.0",
+    "jose": "6.2.13"
+  }
+}

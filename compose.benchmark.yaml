@@ -1,0 +1,6 @@
+# Opt-in only: expose services on loopback for the direct-call latency comparison.
+services:
+  user:
+    ports: ["127.0.0.1:3001:3001"]
+  order:
+    ports: ["127.0.0.1:3002:3002"]

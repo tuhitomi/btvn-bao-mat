@@ -1,0 +1,88 @@
+name: btvn-bao-mat
+
+x-app: &app
+  build: .
+  init: true
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  networks: [backend]
+  healthcheck:
+    test: [CMD, node, -e, "fetch('http://127.0.0.1:'+process.env.PORT+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+    interval: 5s
+    timeout: 3s
+    retries: 12
+
+services:
+  gateway:
+    <<: *app
+    command: [node, src/gateway/main.mjs]
+    ports: ["127.0.0.1:8080:8080"]
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      GATEWAY_PORT: 8080
+      USER_URL: http://user:3001
+      ORDER_URL: http://order:3002
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Run npm run setup}
+      JWT_PUBLIC_KEY_FILE: /run/keys/public.pem
+    volumes:
+      - ./.secrets/public.pem:/run/keys/public.pem:ro
+    depends_on:
+      user: { condition: service_healthy }
+      order: { condition: service_healthy }
+
+  user:
+    <<: *app
+    command: [node, src/user/main.mjs]
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3001
+      USER_PORT: 3001
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Run npm run setup}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?Run npm run setup}
+      JWT_PRIVATE_KEY_FILE: /run/keys/private.pem
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Run npm run setup}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Run npm run setup}
+      MINIO_BUCKET: ${MINIO_BUCKET:-avatars}
+    volumes:
+      - ./.secrets/private.pem:/run/keys/private.pem:ro
+    depends_on:
+      minio: { condition: service_healthy }
+
+  order:
+    <<: *app
+    command: [node, src/order/main.mjs]
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3002
+      ORDER_PORT: 3002
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?Run npm run setup}
+
+  minio:
+    build:
+      context: ./infra/minio
+    image: btvn-bao-mat-minio:source-9e49d5e7
+    command: server /data --console-address :9001
+    restart: unless-stopped
+    ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Run npm run setup}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Run npm run setup}
+    volumes: ["minio-data:/data"]
+    networks: [backend]
+    healthcheck:
+      test: [CMD, curl, -f, http://localhost:9000/minio/health/live]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+networks:
+  backend:
+    internal: true
+
+volumes:
+  minio-data:
